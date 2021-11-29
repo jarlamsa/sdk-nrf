@@ -51,7 +51,8 @@ int lwm2m_init_device(void);
 int lwm2m_init_location(void);
 #endif
 
-#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT)
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT) || \
+    defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
 /**
  * @brief Firmware read callback
  */

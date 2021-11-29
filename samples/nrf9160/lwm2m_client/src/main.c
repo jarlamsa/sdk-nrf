@@ -120,7 +120,8 @@ static int lwm2m_setup(void)
 	lwm2m_app_init_device(imei_buf);
 	lwm2m_init_security(&client, endpoint_name);
 
-#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT)
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT) || \
+	defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
 	lwm2m_init_firmware();
 #endif
 #if defined(CONFIG_LWM2M_CLIENT_UTILS_CONN_MON_OBJ_SUPPORT)
@@ -454,7 +455,8 @@ void main(void)
 		return;
 	}
 #endif
-#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT)
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT) || \
+	defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
 	ret = fota_settings_init();
 	if (ret < 0) {
 		LOG_ERR("Unable to init settings (%d)", ret);
@@ -465,7 +467,8 @@ void main(void)
 	/* Load *all* persistent settings */
 	settings_load();
 
-#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT)
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT) || \
+	defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
 	/* Modem FW update needs to be verified before modem is used. */
 	lwm2m_verify_modem_fw_update();
 #endif
@@ -505,7 +508,6 @@ void main(void)
 		LOG_ERR("Failed to setup LWM2M fields (%d)", ret);
 		return;
 	}
-
 	ret = lwm2m_init_image();
 	if (ret < 0) {
 		LOG_ERR("Failed to setup image properties (%d)", ret);
@@ -527,7 +529,6 @@ void main(void)
 			MODEM_KEY_MGMT_CRED_TYPE_IDENTITY, ret);
 	}
 #endif
-
 	modem_connect();
 
 #if defined(CONFIG_LWM2M_CLIENT_UTILS_CONN_MON_OBJ_SUPPORT)

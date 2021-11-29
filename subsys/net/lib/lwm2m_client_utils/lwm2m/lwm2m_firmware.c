@@ -14,6 +14,9 @@
 #include <logging/log_ctrl.h>
 #include <net/lwm2m.h>
 #include <modem/nrf_modem_lib.h>
+#include <modem/modem_info.h>
+#include <modem/at_cmd.h>
+#include <nrf_modem_at.h>
 #include <sys/reboot.h>
 #include <net/fota_download.h>
 #include <net/lwm2m_client_utils.h>
@@ -117,6 +120,42 @@ static int configure_full_modem_update(void)
 }
 #endif
 
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
+static void get_version_information()
+{
+	int ret;
+	char modem_version[256] = {0};
+	char modem_name[51] = {0};
+	char manufacturer[25] = {0};
+	char hw_version[18] = {0};
+
+	ret = modem_info_init();
+	if (ret != 0) {
+		LOG_ERR("Modem info Init error: %d\n\r", ret);
+	}
+	modem_info_string_get(MODEM_INFO_FW_VERSION, modem_version, MODEM_INFO_MAX_RESPONSE_SIZE);
+
+	ret = nrf_modem_at_scanf("AT+CGMI", "%24[.:0-9A-Za-z ]", &manufacturer);
+	if (ret != 1) {
+		LOG_ERR("Failed to obtain manufacturer, error: %d", ret);
+	}
+
+	ret = nrf_modem_at_scanf("AT%HWVERSION", "%%HWVERSION: %17[.:0-9A-Za-z ]", &hw_version);
+	if (ret != 1) {
+		LOG_ERR("Failed to obtain hw version, error: %d", ret);
+	}
+	strcat(modem_name, "modem:");
+	strcat(modem_name, manufacturer);
+	strcat(modem_name, ":");
+	strcat(modem_name, hw_version);
+
+	lwm2m_software_mgmt_set_package_name(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_INSTANCE_APP, STRINGIFY(PROJECT_NAME));
+	lwm2m_software_mgmt_set_package_version(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_INSTANCE_APP, STRINGIFY(APP_VERSION));
+	lwm2m_software_mgmt_set_package_name(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_INSTANCE_MODEM, modem_name);
+	lwm2m_software_mgmt_set_package_version(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_INSTANCE_MODEM, modem_version);
+}
+#endif
+
 static void reboot_work_handler(struct k_work *work)
 {
 	LOG_PANIC();
@@ -204,6 +243,20 @@ static int firmware_block_received_cb(uint16_t obj_inst_id,
 #if defined(CONFIG_DFU_TARGET_FULL_MODEM)
 		if (image_type == DFU_TARGET_IMAGE_TYPE_FULL_MODEM) {
 			configure_full_modem_update();
+		}
+#endif
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
+		if (obj_inst_id == CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_INSTANCE_APP) {
+			if (image_type == DFU_TARGET_IMAGE_TYPE_MCUBOOT) {
+				LOG_ERR("Unsupported firmware binary for application");
+				goto cleanup;
+			}
+		} else if (obj_inst_id == CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_INSTANCE_MODEM) {
+			if (image_type != DFU_TARGET_IMAGE_TYPE_MODEM_DELTA && 
+			    image_type != DFU_TARGET_IMAGE_TYPE_FULL_MODEM) {
+				LOG_ERR("Unsupported firmware binary for modem");
+				goto cleanup;
+			}
 		}
 #endif
 		ret = dfu_target_init(image_type, total_size, dfu_target_cb);
@@ -309,12 +362,21 @@ static void fota_download_callback(const struct fota_download_evt *evt)
 	case FOTA_DOWNLOAD_EVT_CANCELLED:
 	case FOTA_DOWNLOAD_EVT_ERROR:
 		LOG_ERR("FOTA_DOWNLOAD_EVT_ERROR");
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT)
 		lwm2m_firmware_set_update_state(STATE_IDLE);
+#elif defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
+		lwm2m_software_mgmt_set_update_state(0, SW_MGMT_UPDATE_STATE_INITIAL);
+#endif
 		break;
 	case FOTA_DOWNLOAD_EVT_FINISHED:
 		image_type = fota_download_target();
 		LOG_INF("FOTA download finished, target %d", image_type);
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT)
 		lwm2m_firmware_set_update_state(STATE_DOWNLOADED);
+#elif defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
+		lwm2m_software_mgmt_set_update_state(0, SW_MGMT_UPDATE_STATE_DOWNLOADED);
+		lwm2m_software_mgmt_set_update_state(0, SW_MGMT_UPDATE_STATE_DELIVERED);
+#endif
 		break;
 	}
 	k_free(fota_host);
@@ -331,11 +393,16 @@ static void start_fota_download(struct k_work *work)
 	 */
 	configure_full_modem_update();
 #endif
+	/*TODO: Start with delta image for modem, restart with full image if expected image doesn't match */
 	int ret = fota_download_start(fota_host, fota_path, fota_sec_tag, NULL, 0);
 
 	if (ret < 0) {
 		LOG_ERR("fota_download_start() failed, return code %d", ret);
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT)
 		lwm2m_firmware_set_update_state(STATE_IDLE);
+#elif defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
+		lwm2m_software_mgmt_set_update_state(0, SW_MGMT_UPDATE_STATE_INITIAL);
+#endif
 		k_free(fota_host);
 		fota_host = NULL;
 		fota_path = NULL;
@@ -400,7 +467,11 @@ static int write_dl_uri(uint16_t obj_inst_id,
 	fota_host[len] = 0;
 
 	k_work_submit(&download_work);
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT)
 	lwm2m_firmware_set_update_state(STATE_DOWNLOADING);
+#elif defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
+	lwm2m_software_mgmt_set_update_state(obj_inst_id, SW_MGMT_UPDATE_STATE_DOWNLOAD_STARTED);
+#endif
 	return 0;
 }
 
@@ -411,11 +482,28 @@ int lwm2m_init_firmware(void)
 #if defined(CONFIG_DFU_TARGET_FULL_MODEM)
 	k_work_init(&full_modem_update_work, apply_fmfu_from_ext_flash);
 #endif
-	lwm2m_firmware_set_update_cb(firmware_update_cb);
-	/* setup data buffer for block-wise transfer */
-	lwm2m_engine_register_pre_write_callback("5/0/0", firmware_get_buf);
-	lwm2m_engine_register_post_write_callback("5/0/1", write_dl_uri);
-	lwm2m_firmware_set_write_cb(firmware_block_received_cb);
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_FIRMWARE_UPDATE_OBJ_SUPPORT)
+ 	lwm2m_firmware_set_update_cb(firmware_update_cb);
+// 	/* setup data buffer for block-wise transfer */
+ 	lwm2m_engine_register_pre_write_callback("5/0/0", firmware_get_buf);
+ 	lwm2m_engine_register_post_write_callback("5/0/1", write_dl_uri);
+ 	lwm2m_firmware_set_write_cb(firmware_block_received_cb);
+#elif defined(CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_OBJ_SUPPORT)
+	if (CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_INSTANCE_APP ==
+		CONFIG_LWM2M_CLIENT_UTILS_SOFTWARE_MGMT_INSTANCE_MODEM) {
+		LOG_ERR("2 Software management object instances with same id");
+		return -EINVAL;
+	}
+	/* Create the second instance, first one is automatically created */
+	lwm2m_engine_create_obj_inst("9/1");
+	lwm2m_software_mgmt_set_install_cb(firmware_update_cb);
+	lwm2m_engine_register_pre_write_callback("9/0/2", firmware_get_buf);
+	lwm2m_engine_register_post_write_callback("9/0/3", write_dl_uri);
+	lwm2m_engine_register_pre_write_callback("9/1/2", firmware_get_buf);
+	lwm2m_engine_register_post_write_callback("9/1/3", write_dl_uri);
+	lwm2m_software_mgmt_set_write_cb(firmware_block_received_cb);
+	get_version_information();
+#endif
 	return 0;
 }
 
