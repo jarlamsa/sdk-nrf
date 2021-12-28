@@ -81,6 +81,9 @@ static void modem_data_update(struct k_work *work)
 	lwm2m_engine_set_u32("4/0/8", (uint32_t)modem_param.network.cellid_dec);
 	lwm2m_engine_set_u16("4/0/9", modem_param.network.mnc.value);
 	lwm2m_engine_set_u16("4/0/10", modem_param.network.mcc.value);
+#if defined(CONFIG_LWM2M_CONNMON_OBJECT_VERSION_1_2)
+	lwm2m_engine_set_u16("4/0/12", modem_param.network.area_code.value);
+#endif
 
 	/* Set "Firmware Version" as modem firmware version in device object.
 	 * Do it here not to repeat the process elsewhere - we read the FW
