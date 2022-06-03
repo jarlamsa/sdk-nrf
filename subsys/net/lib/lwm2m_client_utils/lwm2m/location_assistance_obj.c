@@ -46,7 +46,10 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #define LOCATION_ASSIST_ALTITUDE			10
 #define LOCATION_ASSIST_ACCURACY			11
 
-#define LOCATION_ASSIST_MAX_ID				12
+#define LOCATION_ASSIST_AGPS_FILTERED			12
+#define LOCATION_ASSIST_AGPS_ELEVATION_MASK		13
+
+#define LOCATION_ASSIST_MAX_ID				14
 
 static int32_t assist_type;
 static int32_t agps_mask;
@@ -57,6 +60,10 @@ static int32_t pgps_start_gps_time_of_day;
 #if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_AGPS)
 static char assist_buf[CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_AGPS_BUF_SIZE];
 static char assist_data[CONFIG_LWM2M_COAP_BLOCK_SIZE];
+#if defined(CONFIG_NRF_CLOUD_AGPS_FILTERED)
+static bool agps_filtered;
+static int32_t agps_elevation_mask;
+#endif
 #endif
 
 static int32_t result;
@@ -85,6 +92,8 @@ static struct lwm2m_engine_obj_field fields[] = {
 	OBJ_FIELD_DATA(LOCATION_ASSIST_LONGITUDE, W, FLOAT),
 	OBJ_FIELD_DATA(LOCATION_ASSIST_ALTITUDE, W, FLOAT),
 	OBJ_FIELD_DATA(LOCATION_ASSIST_ACCURACY, W, FLOAT),
+	OBJ_FIELD_DATA(LOCATION_ASSIST_AGPS_FILTERED, R_OPT, BOOL),
+	OBJ_FIELD_DATA(LOCATION_ASSIST_AGPS_ELEVATION_MASK, R_OPT, S32),
 };
 
 static struct lwm2m_engine_obj_inst inst;
@@ -129,10 +138,23 @@ static int location_assist_write_cb(uint16_t obj_inst_id, uint16_t res_id,
 void location_assist_agps_request_set(uint32_t request_mask)
 {
 	LOG_INF("Requesting A-GPS data, mask 0x%08x", request_mask);
+
 	/* Store mask to object resource */
 	agps_mask = request_mask;
 	assist_type = ASSISTANCE_REQUEST_TYPE_AGPS;
 }
+
+#if defined(CONFIG_NRF_CLOUD_AGPS_FILTERED)
+void location_assist_set_agps_filtering(bool filtered, int32_t elevation_mask)
+{
+	agps_filtered = filtered;
+	if (elevation_mask >= 0 && elevation_mask <= 90) {
+		agps_elevation_mask = elevation_mask;
+	} else {
+		LOG_ERR("Invalid elevation mask (%d)", elevation_mask);
+	}
+}
+#endif
 #endif
 
 #if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_CELL)
@@ -161,6 +183,12 @@ static struct lwm2m_engine_obj_inst *location_assist_create(uint16_t obj_inst_id
 
 	init_res_instance(res_inst, ARRAY_SIZE(res_inst));
 
+/* Set default values */
+#if defined(CONFIG_NRF_CLOUD_AGPS_FILTERED)
+	agps_filtered = CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_AGPS_FILTERED;
+	agps_elevation_mask = CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_ELEVATION_MASK;
+#endif
+
 	/* initialize instance resource data */
 	INIT_OBJ_RES_DATA(LOCATION_ASSIST_ASSIST_TYPE, res, i, res_inst, j,
 			  &assist_type, sizeof(assist_type));
@@ -188,6 +216,14 @@ static struct lwm2m_engine_obj_inst *location_assist_create(uint16_t obj_inst_id
 			  &altitude, sizeof(altitude));
 	INIT_OBJ_RES_DATA(LOCATION_ASSIST_ACCURACY, res, i, res_inst, j,
 			  &accuracy, sizeof(accuracy));
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_AGPS)
+#if defined(CONFIG_NRF_CLOUD_AGPS_FILTERED)
+	INIT_OBJ_RES_DATA(LOCATION_ASSIST_AGPS_FILTERED, res, i, res_inst, j,
+			  &agps_filtered, sizeof(agps_filtered));
+	INIT_OBJ_RES_DATA(LOCATION_ASSIST_AGPS_ELEVATION_MASK, res, i, res_inst, j,
+			  &agps_elevation_mask, sizeof(agps_elevation_mask));
+#endif
+#endif
 
 	inst.resources = res;
 	inst.resource_count = i;

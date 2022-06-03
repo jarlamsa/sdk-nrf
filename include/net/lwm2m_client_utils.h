@@ -158,6 +158,9 @@ int lwm2m_ncell_handler_register(void);
 void location_assist_agps_request_set(uint32_t request_mask);
 void location_assist_cell_request_set(void);
 void location_assist_cell_inform_set(void);
+#if defined(CONFIG_NRF_CLOUD_AGPS_FILTERED)
+void location_assist_set_agps_filtering(bool filtered, int32_t elevation_mask)
+#endif
 #endif
 
 #ifdef __cplusplus
