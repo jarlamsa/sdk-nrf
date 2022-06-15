@@ -46,6 +46,10 @@ struct nrf_cloud_pgps_header;
 
 typedef int (*npgps_buffer_handler_t)(uint8_t *buf, size_t len);
 
+/* access control functions */
+int npgps_lock(void);
+void npgps_unlock(void);
+
 /* settings functions */
 int npgps_save_header(struct nrf_cloud_pgps_header *header);
 const struct nrf_cloud_pgps_header *npgps_get_saved_header(void);

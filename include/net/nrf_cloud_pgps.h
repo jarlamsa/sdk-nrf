@@ -239,6 +239,34 @@ int nrf_cloud_pgps_request_all(void);
 #endif /* CONFIG_NRF_CLOUD_MQTT */
 
 #if defined(CONFIG_NRF_CLOUD_PGPS_TRANSPORT_NONE)
+
+/**@brief If REST is not used, but some new transport, call this function
+ * when your pgps_event_handler_t receives a PGPS_EVT_REQUEST event, after
+ * your handler has sent the P-GPS request to the cloud and before the first
+ * packet is received. It resets the internal state of the library and
+ * prepares the flash storage to receive incoming data.
+ *
+ * @return a negative value indicates an error.
+ */
+int nrf_cloud_pgps_begin_update(void);
+
+/**@brief If REST is not used, but some new transport, call this function
+ * when your transport receives a block of prediction data.  Prediction data
+ * must be received in file order.
+ *
+ * @param buf Pointer to P-GPS data received from transport.
+ * @param len Size of P-GPS data chunk received from transport.
+ * @return a negative value indicates an error.
+ */
+int nrf_cloud_process_buffer(uint8_t *buf, size_t len);
+
+/**@brief If REST is not used, but some new transport, call this function
+ * when your download completes, either with success or with failure.
+ *
+ * @return a negative value indicates an error.
+ */
+int nrf_cloud_pgps_finish_update(void);
+
 /**@brief If previous request for P-GPS data failed, re-enable future retries.
  * This is should be called by the application after it attempts to
  * handle PGPS_EVT_REQUEST, but is unable to complete it successfully. For

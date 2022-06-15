@@ -99,6 +99,22 @@ static int settings_set(const char *key, size_t len_rd,
 	return -ENOTSUP;
 }
 
+int npgps_lock(void)
+{
+	int err = k_sem_take(&pgps_active, K_NO_WAIT);
+
+	if (!err) {
+		LOG_DBG("pgps_active LOCKED");
+	}
+	return err;
+}
+
+void npgps_unlock(void)
+{
+	k_sem_give(&pgps_active);
+	LOG_DBG("pgps_active UNLOCKED");
+}
+
 int npgps_save_header(struct nrf_cloud_pgps_header *header)
 {
 	int ret = 0;
@@ -447,12 +463,11 @@ int npgps_download_start(const char *host, const char *file, int sec_tag,
 
 	int err;
 
-	err = k_sem_take(&pgps_active, K_NO_WAIT);
+	err = npgps_lock();
 	if (err) {
 		LOG_ERR("PGPS download already active.");
 		return err;
 	}
-	LOG_DBG("pgps_active LOCKED");
 
 	socket_retries_left = SOCKET_RETRIES;
 
@@ -477,8 +492,7 @@ int npgps_download_start(const char *host, const char *file, int sec_tag,
 	return 0;
 
 cleanup:
-	k_sem_give(&pgps_active);
-	LOG_DBG("pgps_active UNLOCKED");
+	npgps_unlock();
 	return err;
 }
 
@@ -526,7 +540,6 @@ static int download_client_callback(const struct download_client_evt *event)
 			"download client:%d", ret);
 		err = ret;
 	}
-	k_sem_give(&pgps_active);
-	LOG_DBG("pgps_active UNLOCKED");
+	npgps_unlock();
 	return err;
 }
