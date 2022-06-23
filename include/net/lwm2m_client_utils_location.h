@@ -55,6 +55,14 @@ struct cell_location_inform_event {
 APP_EVENT_TYPE_DECLARE(cell_location_inform_event);
 #endif
 
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_PGPS)
+struct pgps_data_request_event {
+	struct app_event_header header;
+};
+
+APP_EVENT_TYPE_DECLARE(pgps_data_request_event);
+#endif
+
 int location_event_handler_init(struct lwm2m_ctx *ctx);
 
 #endif /* LWM2M_CLIENT_UTILS_LOCATION_H__ */

@@ -20,6 +20,11 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 #include <net/nrf_cloud_agps.h>
 #endif
 
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_PGPS)
+#include <net/nrf_cloud_pgps.h>
+#include "pgps_data.h"
+#endif
+
 #define LOCATION_ASSIST_VERSION_MAJOR 1
 #define LOCATION_ASSIST_VERSION_MINOR 0
 
@@ -176,6 +181,36 @@ void location_assist_cell_request_set(void)
 #endif
 }
 #endif
+
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_PGPS)
+void location_assist_pgps_request_set()
+{
+	assist_type = ASSISTANCE_REQUEST_TYPE_PGPS;
+}
+
+void location_assist_pgps_params_set(int32_t prediction_count, int32_t prediction_interval,
+				     int32_t prediction_start_day, int32_t prediction_start_sec)
+{
+	pgps_pred_count = prediction_count;
+	pgps_pred_interval = prediction_interval;
+	pgps_start_gps_day = prediction_start_day;
+	pgps_start_gps_time_of_day = prediction_start_sec;
+}
+
+void location_assist_pgps_write_data()
+{
+	
+	// Write the assistance data to the flash
+	LOG_INF("Begin P-GPS update");
+	nrf_cloud_pgps_begin_update();
+	LOG_INF("Writing P-GPS predictions");
+	nrf_cloud_process_buffer(pgps_bin, 2024);
+	nrf_cloud_process_buffer(pgps_bin+2024, 2024);
+	LOG_INF("FINISH P-GPS update");
+	nrf_cloud_pgps_finish_update();
+
+}
+#endif /* CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_PGPS */
 
 static struct lwm2m_engine_obj_inst *location_assist_create(uint16_t obj_inst_id)
 {

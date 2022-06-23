@@ -127,6 +127,9 @@ config LWM2M_CLIENT_UTILS_LOCATION_ASSIST_AGPS
 	  A-GPS assistance data is requested from lwm2m server and fed to the GNSS module
 	  after the data has been received.
 
+config LWM2M_CLIENT_UTILS_LOCATION_ASSIST_PGPS
+	bool "Use location based on P-GPS"
+
 config LWM2M_CLIENT_UTILS_LOCATION_ASSIST_AGPS_BUF_SIZE
 	int "Size of the buffer for storing the assistance data coming from server"
 	depends on LWM2M_CLIENT_UTILS_LOCATION_ASSIST_AGPS

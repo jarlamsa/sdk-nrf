@@ -1271,7 +1271,7 @@ static int consume_pgps_data(uint8_t pnum, const char *buf, size_t buf_len)
 
 	gps_sec = 0;
 
-	LOG_DBG("Parsing prediction num:%u, idx:%u, type:%u, count:%u, buf len:%u",
+	LOG_INF("Parsing prediction num:%u, idx:%u, type:%u, count:%u, buf len:%u",
 		pnum, index.loading_count, elem->type, elem->count, buf_len);
 
 	while (parsed_len < buf_len) {
@@ -1324,7 +1324,9 @@ static int consume_pgps_data(uint8_t pnum, const char *buf, size_t buf_len)
 			LOG_INF("Storing prediction num:%u idx:%u for gps sec:%d",
 				pnum, index.loading_count, (int32_t)gps_sec);
 
-			index.loading_count++;
+			index.loading_count += elem->count;
+			LOG_INF("LOADED %u, expected, %u", index.loading_count, index.expected_count);
+			LOG_INF("Need assistance %lu", pgps_need_assistance);
 			finished = (index.loading_count == index.expected_count);
 			store_prediction(prediction_ptr, buf_len, (uint32_t)gps_sec,
 					 finished || (index.storage_extent == 1));

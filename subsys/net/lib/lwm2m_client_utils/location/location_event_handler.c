@@ -116,6 +116,15 @@ static bool handle_cell_location_event(bool send_back)
 }
 #endif
 
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_PGPS)
+static bool handle_pgps_data_request_event()
+{
+	//TODO: Send request to server, now just fake that we sent it and inject it instead
+	location_assist_pgps_write_data();
+	return true;
+}
+#endif
+
 static bool event_handler(const struct app_event_header *eh)
 {
 	if (client_ctx == 0) {
@@ -140,6 +149,12 @@ static bool event_handler(const struct app_event_header *eh)
 		return true;
 	}
 #endif
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_PGPS)
+	if (is_pgps_data_request_event(eh)) {
+		handle_pgps_data_request_event();
+		return true;
+	}
+#endif
 
 	return false;
 }
@@ -151,6 +166,9 @@ APP_EVENT_SUBSCRIBE(MODULE, gnss_agps_request_event);
 #if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_CELL)
 APP_EVENT_SUBSCRIBE(MODULE, cell_location_request_event);
 APP_EVENT_SUBSCRIBE(MODULE, cell_location_inform_event);
+#endif
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_PGPS)
+APP_EVENT_SUBSCRIBE(MODULE, pgps_data_request_event);
 #endif
 
 int location_event_handler_init(struct lwm2m_ctx *ctx)

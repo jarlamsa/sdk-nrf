@@ -161,6 +161,12 @@ void location_assist_cell_inform_set(void);
 #if defined(CONFIG_NRF_CLOUD_AGPS_FILTERED)
 void location_assist_set_agps_filtering(bool filtered, int32_t elevation_mask)
 #endif
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_LOCATION_ASSIST_PGPS)
+void location_assist_pgps_request_set();
+void location_assist_pgps_params_set(int32_t prediction_count, int32_t prediction_interval,
+				     int32_t prediction_start_day, int32_t prediction_start_sec);
+void location_assist_pgps_write_data();
+#endif
 #endif
 
 #ifdef __cplusplus
