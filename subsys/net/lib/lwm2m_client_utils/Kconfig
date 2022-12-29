@@ -225,6 +225,10 @@ config LWM2M_CLIENT_UTILS_NEIGHBOUR_CELL_LISTENER
 	bool "Use a listener to populate signal measurement objects"
 	depends on LWM2M_CLIENT_UTILS_SIGNAL_MEAS_INFO_OBJ_SUPPORT
 
+config LWM2M_CLIENT_UTILS_GCI_NEIGHBOUR_CELLS
+	bool "Use CGI cell scan for the neighbour cells"
+	depends on LWM2M_CLIENT_UTILS_NEIGHBOUR_CELL_LISTENER
+
 config LWM2M_CLIENT_UTILS_VISIBLE_WIFI_AP_INSTANCE_COUNT
 	int "Maximum # of visible Wi-Fi access point objects"
 	default 5

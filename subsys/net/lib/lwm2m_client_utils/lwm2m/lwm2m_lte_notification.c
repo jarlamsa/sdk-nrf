@@ -25,6 +25,15 @@ static void lte_notify_handler(const struct lte_lc_evt *const evt);
 static K_SEM_DEFINE(rrc_idle, 0, 1);
 static bool measurement_scheduled;
 
+static struct lte_lc_ncellmeas_params ncellmeas_params = {
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_GCI_NEIGHBOUR_CELLS)
+	.search_type = LTE_LC_NEIGHBOR_SEARCH_TYPE_GCI_EXTENDED_COMPLETE,
+	.gci_count = MAX_INSTANCE_COUNT
+#else
+	.search_type = LTE_LC_NEIGHBOR_SEARCH_TYPE_DEFAULT
+#endif
+};
+
 void lwm2m_ncell_schedule_measurement(void)
 {
 	if (measurement_scheduled) {
@@ -38,7 +47,7 @@ void lwm2m_ncell_schedule_measurement(void)
 		return;
 	}
 
-	lte_lc_neighbor_cell_measurement(NULL);
+	lte_lc_neighbor_cell_measurement(ncellmeas_params);
 	measurement_scheduled = false;
 	k_sem_give(&rrc_idle);
 }
@@ -70,7 +79,7 @@ void lte_notify_handler(const struct lte_lc_evt *const evt)
 			k_sem_reset(&rrc_idle);
 		} else if (evt->rrc_mode == LTE_LC_RRC_MODE_IDLE) {
 			if (measurement_scheduled) {
-				lte_lc_neighbor_cell_measurement(NULL);
+				lte_lc_neighbor_cell_measurement(ncellmeas_params);
 				measurement_scheduled = false;
 			}
 			k_sem_give(&rrc_idle);

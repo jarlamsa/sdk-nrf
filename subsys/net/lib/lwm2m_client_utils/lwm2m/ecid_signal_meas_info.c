@@ -109,6 +109,28 @@ static void update_signal_meas_object(const struct lte_lc_ncell *const cell, uin
 	lwm2m_engine_set_s32(path, cell->time_diff);
 }
 
+static void update_signal_meas_object_gci(const struct lte_lc_cell *const cell, uint16_t index)
+{
+	int obj_inst_id;
+	char path[sizeof("10256/65535/0")];
+
+	obj_inst_id = lwm2m_signal_meas_info_index_to_inst_id(index);
+
+	snprintk(path, sizeof(path), "10256/%" PRIu16 "/0", obj_inst_id);
+	lwm2m_engine_set_s32(path, cell->phys_cell_id);
+	/* We don't set the resource 1 as the lte_lc_ncell struct doesn't
+	 * contain MCC and MNC for calculating ECGI
+	 */
+	snprintk(path, sizeof(path), "10256/%" PRIu16 "/2", obj_inst_id);
+	lwm2m_engine_set_s32(path, cell->earfcn);
+	snprintk(path, sizeof(path), "10256/%" PRIu16 "/3", obj_inst_id);
+	lwm2m_engine_set_s32(path, RSRP_IDX_TO_DBM(cell->rsrp));
+	snprintk(path, sizeof(path), "10256/%" PRIu16 "/4", obj_inst_id);
+	lwm2m_engine_set_s32(path, RSRQ_IDX_TO_DB(cell->rsrq));
+	snprintk(path, sizeof(path), "10256/%" PRIu16 "/5", obj_inst_id);
+	lwm2m_engine_set_s32(path, cell->time_diff);
+}
+
 static void reset_signal_meas_object(uint16_t index)
 {
 	int obj_inst_id;
@@ -144,6 +166,12 @@ int lwm2m_update_signal_meas_objects(const struct lte_lc_cells_info *const cells
 	}
 
 	LOG_INF("Updating information for %d neighbouring cells", cells->ncells_count);
+
+#if defined(CONFIG_LWM2M_CLIENT_UTILS_GCI_NEIGHBOUR_CELLS)
+	for (i = 0; i < MAX_INSTANCE_COUNT && i < cells->gci_cells_count; i++) {
+		update_signal_meas_object_gci(&cells->gci_cells[i], i);
+	}
+#endif
 
 	for (i = 0; i < MAX_INSTANCE_COUNT && i < cells->ncells_count; i++) {
 		update_signal_meas_object(&cells->neighbor_cells[i], i);
